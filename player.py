@@ -2,11 +2,21 @@
 import argparse
 from functools import partial
 import tkinter as tk
+from tkinter import ttk
 import vlc
 
 TITLE = "Shrick Video Player"
 FF_SECONDS = 10
 FR_SECONDS = 5
+
+def update_progress(player, root, progress):
+    percentage = player.get_position() * 100
+    if percentage < 99:
+        print(f"progress={percentage}%")
+        progress.set(percentage)
+        root.after(1_000, lambda: update_progress(player, root, progress))
+    else:
+        stop(player, root)
 
 def playback(player):
     player.set_pause(player.is_playing())
@@ -17,11 +27,11 @@ def forward(player, seconds):
 def rewind(player, seconds):
     player.set_time(player.get_time() - seconds * 1_000)
 
-def stop(player, root, filename, delete=False):
+def stop(player, root, delete=None):
     player.stop()
     player.release()
-    if delete:
-        print(f"TBD delete file '{filename}'")
+    if delete is not None:
+        print(f"TBD delete file '{delete}'")
     root.destroy()
 
 def get_commandline_arguments():
@@ -42,8 +52,8 @@ if __name__ == '__main__':
 
     # callbacks
     playback_callback = partial(playback, player=player)
-    stop_callback = partial(stop, player=player, root=root, filename=filename)
-    delete_callback = partial(stop_callback, delete=True)
+    stop_callback = partial(stop, player=player, root=root)
+    delete_callback = partial(stop_callback, delete=filename)
     forward_callback = partial(forward, player=player, seconds=ff)
     rewind_callback = partial(rewind, player=player, seconds=fr)
 
@@ -59,17 +69,21 @@ if __name__ == '__main__':
     frame.grid(row=0, column=0, columnspan=3, sticky="NSEW")
     player.set_xwindow(frame.winfo_id())
 
+    progress = tk.IntVar()
+    progressbar = ttk.Progressbar(variable=progress)
+    progressbar.grid(row=1, column=0, columnspan=3, sticky="SEW")
+
     if fullscreen:
         root.attributes('-fullscreen', True)
     else:
         root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
 
         tk.Button(root, text="Play/Pause", fg="green",
-            command=playback_callback).grid(row=1, column=0, sticky="SEW")
+            command=playback_callback).grid(row=2, column=0, sticky="SEW")
         tk.Button(root, text="Stop/Quit", fg="blue",
-            command=stop_callback).grid(row=1, column=1, sticky="SEW")
+            command=stop_callback).grid(row=2, column=1, sticky="SEW")
         tk.Button(root, text="Delete", fg="red",
-            command=delete_callback).grid(row=1, column=2, sticky="SEW")
+            command=delete_callback).grid(row=2, column=2, sticky="SEW")
 
     # key bindings
     root.bind('<Right>', lambda event: forward_callback())
@@ -80,5 +94,6 @@ if __name__ == '__main__':
 
     # start
     player.play()
+    root.after(0, lambda: update_progress(player, root, progress))
     root.focus_set()
     root.mainloop()
