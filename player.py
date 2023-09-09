@@ -8,13 +8,14 @@ import vlc
 TITLE = "Shrick Video Player"
 FF_SECONDS = 10
 FR_SECONDS = 5
+PROGRESS_INTERVAL = 0.5
 
 def update_progress(player, root, progress):
     percentage = player.get_position() * 100
     if percentage < 99:
         print(f"progress={percentage}%")
         progress.set(percentage)
-        root.after(1_000, lambda: update_progress(player, root, progress))
+        root.after(int(PROGRESS_INTERVAL * 1_000), lambda: update_progress(player, root, progress))
     else:
         stop(player, root)
 
@@ -22,10 +23,12 @@ def playback(player):
     player.set_pause(player.is_playing())
 
 def forward(player, seconds):
-    player.set_time(player.get_time() + seconds * 1_000)
+    new_time = min(player.get_length(), player.get_time() + seconds * 1_000)
+    player.set_time(new_time)
 
 def rewind(player, seconds):
-    player.set_time(player.get_time() - seconds * 1_000)
+    new_time = max(0, player.get_time() - seconds * 1_000)
+    player.set_time(new_time)
 
 def stop(player, root, delete=None):
     player.stop()
@@ -47,7 +50,7 @@ def get_commandline_arguments():
 if __name__ == '__main__':
     # init
     filename, title, fullscreen, ff, fr = get_commandline_arguments()
-    player = vlc.MediaPlayer(filename)
+    player = vlc.MediaPlayer(filename) # https://www.olivieraubert.net/vlc/python-ctypes/doc/vlc.MediaPlayer-class.html
     root = tk.Tk()
 
     # callbacks
