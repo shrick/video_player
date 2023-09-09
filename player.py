@@ -11,23 +11,23 @@ import vlc
 TITLE = "Shrick Video Player"
 FF_SECONDS = 10
 FR_SECONDS = 5
-PROGRESS_INTERVAL = int(0.5 * 1_000)
+PROGRESS_INTERVAL = int(0.25 * 1_000)
 
 @dataclass(init=True)
 class PlayerContext:
     root: ... = None
     player: ... = None
-    filename: ... = None
+    filename: str = None
     progress: ... = None
     job: ... = None
 
 def update_progress(context):
     percentage = context.player.get_position() * 100
-    if percentage < 99:
+    if context.player.get_time() < context.player.get_length() - 100:
         context.progress.set(percentage)
         context.job = context.root.after(PROGRESS_INTERVAL, lambda: update_progress(context))
     else:
-        stop(player, root)
+        stop(context)
 
 def playback(player):
     player.set_pause(player.is_playing())
