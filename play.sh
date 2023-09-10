@@ -8,9 +8,7 @@ ABORT_CODE=23
 
 VIDEO_DIR="$1"; shift
 find "$VIDEO_DIR" -type f | while read f; do
-    echo Playing "$f"...
     $PLAYER_CMD "$f" -t "$PLAYER_TITLE" "$@"
-
     if [ $? -eq $ABORT_CODE ]; then
         echo Aborting...
         break

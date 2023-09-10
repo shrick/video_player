@@ -152,6 +152,8 @@ def main():
 
     if fullscreen:
         root.attributes('-fullscreen', True)
+        root.lift()
+        root.focus_force()
     else:
         root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
         tk.Button(root, text="Play/Pause", fg="green",
@@ -177,7 +179,6 @@ def main():
         exit(4)
 
     context.job = root.after(PROGRESS_INTERVAL, lambda: update_progress(context))
-    root.focus_set()
     root.mainloop()
 
 if __name__ == '__main__':
