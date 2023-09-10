@@ -14,6 +14,7 @@ FF_SECONDS = 10
 FR_SECONDS = 5
 PROGRESS_INTERVAL = int(0.25 * 1_000)
 CONFIG_FILENAME = "player.ini"
+ABORT_EXIT_CODE=23
 
 @dataclass(init=True)
 class PlayerContext:
@@ -42,7 +43,7 @@ def rewind(player, seconds):
     new_time = max(0, player.get_time() - seconds * 1_000)
     player.set_time(new_time)
 
-def stop(context, delete=False):
+def stop(context, abort=False, delete=False):
     if context.job is not None:
         context.root.after_cancel(context.job)
         context.job = None
@@ -51,7 +52,12 @@ def stop(context, delete=False):
     if delete:
         delete_file(context.filename)
     context.root.destroy()
-    save_resume_filename(context.filename)
+    if abort:
+        print(f"Abort, saving resume file '{context.filename}'...")
+        save_resume_filename(context.filename)
+        exit(ABORT_EXIT_CODE)
+    else:
+        save_resume_filename(None)
 
 def delete_file(filename):
     yes = askyesno(title="Confirmation", message=f"Really delete file '{filename}'?")
@@ -61,10 +67,13 @@ def delete_file(filename):
         file.unlink(missing_ok=True)
 
 def save_resume_filename(resume_filename):
-    config = configparser.ConfigParser()
-    config['resume'] = { 'filename': resume_filename }
-    with open(CONFIG_FILENAME, 'w') as configfile:
-        config.write(configfile)
+    if resume_filename is not None:
+        config = configparser.ConfigParser()
+        config['resume'] = { 'filename': resume_filename }
+        with open(CONFIG_FILENAME, 'w') as configfile:
+            config.write(configfile)
+    else:
+        pathlib.Path(CONFIG_FILENAME).unlink(missing_ok=True)
 
 def load_resume_filename():
     config = configparser.ConfigParser()
@@ -111,7 +120,7 @@ def main():
     # check resume conditions
     if not can_resume_or_continue(resume, play_file):
         print(f"Not resume file '{filename}'...")
-        exit(0)
+        exit(2)
 
     # init
     player = vlc.MediaPlayer(filename) # https://www.olivieraubert.net/vlc/python-ctypes/doc/vlc.MediaPlayer-class.html
@@ -122,6 +131,7 @@ def main():
     playback_callback = partial(toggle_playback, player=player)
     stop_callback = partial(stop, context=context)
     delete_callback = partial(stop_callback, delete=True)
+    abort_callback = partial(stop_callback, abort=True)
     forward_callback = partial(forward, player=player, seconds=ff)
     rewind_callback = partial(rewind, player=player, seconds=fr)
 
@@ -133,9 +143,9 @@ def main():
     tk.Grid.columnconfigure(root, 1, weight=1)
     tk.Grid.columnconfigure(root, 2, weight=1)
 
-    frame = tk.Frame(root, bg='black')
-    frame.grid(row=0, column=0, columnspan=3, sticky="NSEW")
-    player.set_xwindow(frame.winfo_id())
+    video = tk.Frame(root, bg='black')
+    video.grid(row=0, column=0, columnspan=3, sticky="NSEW")
+    player.set_xwindow(video.winfo_id())
 
     progressbar = ttk.Progressbar(variable=context.progress)
     progressbar.grid(row=1, column=0, columnspan=3, sticky="SEW")
@@ -144,7 +154,6 @@ def main():
         root.attributes('-fullscreen', True)
     else:
         root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
-
         tk.Button(root, text="Play/Pause", fg="green",
             command=playback_callback).grid(row=2, column=0, sticky="SEW")
         tk.Button(root, text="Stop/Quit", fg="blue",
@@ -156,15 +165,16 @@ def main():
     root.bind('<Right>', lambda event: forward_callback())
     root.bind('<Left>', lambda event: rewind_callback())
     root.bind("<space>", lambda event: playback_callback())
-    root.bind("<q>", lambda event: stop_callback())
     root.bind("<Escape>", lambda event: stop_callback())
+    root.bind("<d>", lambda event: delete_callback())
+    root.bind("<a>", lambda event: abort_callback())
 
     # start
     print(f"Now playing '{filename}'...")
     started = player.play()
     if started == -1:
         print(f"Error: Could not play file '{filename}'!")
-        exit(1)
+        exit(4)
 
     context.job = root.after(PROGRESS_INTERVAL, lambda: update_progress(context))
     root.focus_set()
