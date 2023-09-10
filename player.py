@@ -3,6 +3,7 @@ import argparse
 import pathlib
 from functools import partial
 from dataclasses import dataclass
+import configparser
 import tkinter as tk
 from tkinter import ttk
 from tkinter.messagebox import askyesno
@@ -12,6 +13,7 @@ TITLE = "Shrick Video Player"
 FF_SECONDS = 10
 FR_SECONDS = 5
 PROGRESS_INTERVAL = int(0.25 * 1_000)
+CONFIG_FILENAME = "player.ini"
 
 @dataclass(init=True)
 class PlayerContext:
@@ -29,7 +31,7 @@ def update_progress(context):
     else:
         stop(context)
 
-def playback(player):
+def toggle_playback(player):
     player.set_pause(player.is_playing())
 
 def forward(player, seconds):
@@ -49,6 +51,7 @@ def stop(context, delete=False):
     if delete:
         delete_file(context.filename)
     context.root.destroy()
+    save_resume_filename(context.filename)
 
 def delete_file(filename):
     yes = askyesno(title="Confirmation", message=f"Really delete file '{filename}'?")
@@ -57,6 +60,33 @@ def delete_file(filename):
         file = pathlib.Path(filename)
         file.unlink(missing_ok=True)
 
+def save_resume_filename(resume_filename):
+    config = configparser.ConfigParser()
+    config['resume'] = { 'filename': resume_filename }
+    with open(CONFIG_FILENAME, 'w') as configfile:
+        config.write(configfile)
+
+def load_resume_filename():
+    config = configparser.ConfigParser()
+    config.read(CONFIG_FILENAME)
+    try:
+        resume_filename = config['resume']['filename']
+    except KeyError:
+        resume_filename = None
+    return resume_filename
+
+def can_resume_or_continue(resume, play_file):
+    if resume:
+        try:
+            resume_file = pathlib.Path(load_resume_filename())
+        except TypeError:
+            pass
+        else:
+            if resume_file.is_file() and not resume_file.samefile(play_file):
+                return False
+
+    return True
+
 def get_commandline_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename')
@@ -64,21 +94,32 @@ def get_commandline_arguments():
     parser.add_argument('-fs', '--full-screen', action='store_true')
     parser.add_argument('-ff', '--fast-forward', type=int, default=FF_SECONDS)
     parser.add_argument('-fr', '--fast-rewind', type=int, default=FR_SECONDS)
+    parser.add_argument('-r', '--resume', action='store_true')
     args = parser.parse_args()
-    return args.filename, args.title, args.full_screen, args.fast_forward, args.fast_rewind
+    return args.filename, args.title, args.full_screen, args.fast_forward, args.fast_rewind, args.resume
 
 def main():
-    # init
-    filename, title, fullscreen, ff, fr = get_commandline_arguments()
-    if not pathlib.Path(filename).is_file():
+    # command line options
+    filename, title, fullscreen, ff, fr, resume = get_commandline_arguments()
+
+    # check file exists
+    play_file = pathlib.Path(filename)
+    if not play_file.is_file():
         print(f"Error: File '{filename}' does not exist!")
         exit(1)
+
+    # check resume conditions
+    if not can_resume_or_continue(resume, play_file):
+        print(f"Not resume file '{filename}'...")
+        exit(0)
+
+    # init
     player = vlc.MediaPlayer(filename) # https://www.olivieraubert.net/vlc/python-ctypes/doc/vlc.MediaPlayer-class.html
     root = tk.Tk()
     context = PlayerContext(root=root, player=player, filename=filename, progress=tk.IntVar(), job=None)
 
     # callbacks
-    playback_callback = partial(playback, player=player)
+    playback_callback = partial(toggle_playback, player=player)
     stop_callback = partial(stop, context=context)
     delete_callback = partial(stop_callback, delete=True)
     forward_callback = partial(forward, player=player, seconds=ff)
