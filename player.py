@@ -12,38 +12,43 @@ import vlc
 TITLE = "Shrick Video Player"
 FF_SECONDS = 10
 FR_SECONDS = 5
-PROGRESS_INTERVAL = int(0.25 * 1_000)
+PROGRESS_INTERVAL_MS = int(0.25 * 1_000)
+END_TOLERANCE_MS = 300
 CONFIG_FILENAME = "player.ini"
 ABORT_EXIT_CODE=23
 
 @dataclass(init=True)
 class PlayerContext:
-    root: ... = None
-    player: ... = None
+    root: tk.Tk = None
+    player: vlc.MediaPlayer = None
     filename: str = None
     progress: ... = None
+    last_time: ... = None
     job: ... = None
 
-def update_progress(context):
-    percentage = context.player.get_position() * 100
-    if context.player.get_time() < context.player.get_length() - 100:
-        context.progress.set(percentage)
-        context.job = context.root.after(PROGRESS_INTERVAL, lambda: update_progress(context))
-    else:
+def update_progress(context: PlayerContext):
+    new_time = context.player.get_time()
+    if (new_time == context.last_time) and (context.player.get_length() - new_time < END_TOLERANCE_MS):
         stop(context)
+    else:
+        context.progress.set(context.player.get_position() * 100)
+        context.last_time = new_time
+        context.job = context.root.after(PROGRESS_INTERVAL_MS, lambda: update_progress(context))
 
-def toggle_playback(player):
+def toggle_playback(player: vlc.MediaPlayer):
     player.set_pause(player.is_playing())
 
-def forward(player, seconds):
-    new_time = min(player.get_length(), player.get_time() + seconds * 1_000)
-    player.set_time(new_time)
+def forward(context: PlayerContext, seconds: int):
+    new_time = min(context.player.get_length(), context.player.get_time() + seconds * 1_000)
+    context.player.set_time(new_time)
+    context.last_time = new_time
 
-def rewind(player, seconds):
-    new_time = max(0, player.get_time() - seconds * 1_000)
-    player.set_time(new_time)
+def rewind(context: PlayerContext, seconds: int):
+    new_time = max(0, context.player.get_time() - seconds * 1_000)
+    context.player.set_time(new_time)
+    context.last_time = new_time
 
-def stop(context, abort=False, delete=False):
+def stop(context: PlayerContext, abort: bool=False, delete: bool=False):
     if context.job is not None:
         context.root.after_cancel(context.job)
         context.job = None
@@ -59,14 +64,14 @@ def stop(context, abort=False, delete=False):
     else:
         save_resume_filename(None)
 
-def delete_file(filename):
+def delete_file(filename: str):
     yes = askyesno(title="Confirmation", message=f"Really delete file '{filename}'?")
     if yes:
         print(f"Deleting file '{filename}'...")
         file = pathlib.Path(filename)
         file.unlink(missing_ok=True)
 
-def save_resume_filename(resume_filename):
+def save_resume_filename(resume_filename: str):
     if resume_filename is not None:
         config = configparser.ConfigParser()
         config['resume'] = { 'filename': resume_filename }
@@ -84,7 +89,7 @@ def load_resume_filename():
         resume_filename = None
     return resume_filename
 
-def can_resume_or_continue(resume, play_file):
+def can_resume_or_continue(resume: bool, play_file: str):
     if resume:
         try:
             resume_file = pathlib.Path(load_resume_filename())
@@ -125,15 +130,15 @@ def main():
     # init
     player = vlc.MediaPlayer(filename) # https://www.olivieraubert.net/vlc/python-ctypes/doc/vlc.MediaPlayer-class.html
     root = tk.Tk()
-    context = PlayerContext(root=root, player=player, filename=filename, progress=tk.IntVar(), job=None)
+    context = PlayerContext(root=root, player=player, filename=filename, progress=tk.IntVar(), last_time=-1, job=None)
 
     # callbacks
     playback_callback = partial(toggle_playback, player=player)
     stop_callback = partial(stop, context=context)
     delete_callback = partial(stop_callback, delete=True)
     abort_callback = partial(stop_callback, abort=True)
-    forward_callback = partial(forward, player=player, seconds=ff)
-    rewind_callback = partial(rewind, player=player, seconds=fr)
+    forward_callback = partial(forward, context=context, seconds=ff)
+    rewind_callback = partial(rewind, context=context, seconds=fr)
 
     # controls
     root.title(f"{title} ({filename})")
@@ -178,7 +183,7 @@ def main():
         print(f"Error: Could not play file '{filename}'!")
         exit(4)
 
-    context.job = root.after(PROGRESS_INTERVAL, lambda: update_progress(context))
+    context.job = root.after(PROGRESS_INTERVAL_MS, lambda: update_progress(context))
     root.mainloop()
 
 if __name__ == '__main__':
