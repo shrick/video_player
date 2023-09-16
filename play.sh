@@ -7,7 +7,7 @@ ABORT_CODE=23
 . .env/bin/activate
 
 VIDEO_DIR="$1"; shift
-find "$VIDEO_DIR" -type f | while read f; do
+find "$VIDEO_DIR" -type f | sort | while read f; do
     $PLAYER_CMD "$f" -t "$PLAYER_TITLE" "$@"
     if [ $? -eq $ABORT_CODE ]; then
         echo Aborting...
