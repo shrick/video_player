@@ -26,6 +26,16 @@ class PlayerContext:
     last_time: ... = None
     job: ... = None
 
+def start_playback(context: PlayerContext, volume: int):
+    if volume is not None:
+        context.player.audio_set_volume(max(0, min(volume, 100)))
+    started = context.player.play()
+    if started == -1:
+        print(f"Error: Could not play file '{context.filename}'!")
+        exit(4)
+    print(f"Now playing '{context.filename}'...")
+    context.job = context.root.after(PROGRESS_INTERVAL_MS, lambda: update_progress(context))
+
 def update_progress(context: PlayerContext):
     new_time = context.player.get_time()
     if (new_time == context.last_time) and (context.player.get_length() - new_time < END_TOLERANCE_MS):
@@ -105,16 +115,20 @@ def get_commandline_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename')
     parser.add_argument('-t', '--title', default=TITLE)
+    parser.add_argument('-r', '--resume', action='store_true')
     parser.add_argument('-fs', '--full-screen', action='store_true')
     parser.add_argument('-ff', '--fast-forward', type=int, default=FF_SECONDS)
     parser.add_argument('-fr', '--fast-rewind', type=int, default=FR_SECONDS)
-    parser.add_argument('-r', '--resume', action='store_true')
+    parser.add_argument('-av', '--audio-volume', type=int, default=None)
+
     args = parser.parse_args()
-    return args.filename, args.title, args.full_screen, args.fast_forward, args.fast_rewind, args.resume
+    return (args.filename, args.title,
+        args.resume, args.full_screen,
+        args.fast_forward, args.fast_rewind, args.audio_volume)
 
 def main():
     # command line options
-    filename, title, fullscreen, ff, fr, resume = get_commandline_arguments()
+    filename, title, resume, fullscreen, ff, fr, av = get_commandline_arguments()
 
     # check file exists
     play_file = pathlib.Path(filename)
@@ -177,13 +191,7 @@ def main():
     root.bind("<a>", lambda event: abort_callback())
 
     # start
-    print(f"Now playing '{filename}'...")
-    started = player.play()
-    if started == -1:
-        print(f"Error: Could not play file '{filename}'!")
-        exit(4)
-
-    context.job = root.after(PROGRESS_INTERVAL_MS, lambda: update_progress(context))
+    start_playback(context, av)
     root.mainloop()
 
 if __name__ == '__main__':
