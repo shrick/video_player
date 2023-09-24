@@ -1,6 +1,7 @@
 .env/
 player.ini
 all/
+test*/
 trial/
 selected/
 
