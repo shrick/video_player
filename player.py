@@ -26,7 +26,8 @@ class PlayerContext:
     wait: bool = False
     volume: int = None
     play_dir_list: list[pathlib.Path] = None
-    play_file: str = None
+    play_dir: pathlib.Path = None
+    play_file: pathlib.Path = None
     progress: ... = None
     last_time: int = -1
     job: ... = None
@@ -145,37 +146,36 @@ def abort(context: PlayerContext) -> None:
         next_video(context)
     stop(context)
     print(f"Abort, saving resume file '{context.play_file}'...")
-    save_resume_filename(context.play_file)
+    save_resume_filename(context.play_dir, context.play_file)
 
 def stop(context: PlayerContext) -> None:
     cleanup_player(context)
     context.root.destroy()
 
-def save_resume_filename(resume_file: pathlib.Path) -> None:
+def save_resume_filename(config_root: pathlib.Path, resume_file: pathlib.Path) -> None:
     if resume_file is not None:
         config = configparser.ConfigParser()
         config['resume'] = { 'filename': str(resume_file) }
-        with open(CONFIG_FILENAME, 'w') as configfile:
+        with open(config_root / CONFIG_FILENAME, 'w') as configfile:
             config.write(configfile)
 
-def load_resume_filename() -> str:
+def load_resume_filename(config_root: pathlib.Path) -> str:
     config = configparser.ConfigParser()
-    config.read(CONFIG_FILENAME)
+    config.read(config_root / CONFIG_FILENAME)
     try:
         resume_filename = config['resume']['filename']
     except KeyError:
         resume_filename = None
     return resume_filename
 
-def get_resume_file(resume: bool, play_dir_list: list) -> bool:
-    if resume:
-        try:
-            resume_file = pathlib.Path(load_resume_filename())
-        except TypeError:
-            pass
-        else:
-            if resume_file.is_file() and resume_file in play_dir_list:
-                return resume_file
+def get_resume_file(config_root: pathlib.Path, play_dir_list: list) -> bool:
+    try:
+        resume_file = pathlib.Path(load_resume_filename(config_root))
+    except TypeError:
+        pass
+    else:
+        if resume_file.is_file() and resume_file in play_dir_list:
+            return resume_file
 
     return None
 
@@ -220,7 +220,7 @@ def main():
     play_dir_list = build_play_dir_list(play_dir)
 
     # resume or start
-    play_file = get_resume_file(resume, play_dir_list)
+    play_file = get_resume_file(play_dir, play_dir_list) if resume else None
     if play_file is None and len(play_dir_list):
         play_file = play_dir_list[0]
     else:
@@ -229,7 +229,9 @@ def main():
     # init
     root = tk.Tk()
     root.title(title)
-    context = PlayerContext(root=root, wait=wait, volume=av, play_dir_list=play_dir_list, progress=tk.IntVar())
+    context = PlayerContext(root=root, wait=wait, volume=av,
+                            play_dir_list=play_dir_list, play_dir=play_dir,
+                            progress=tk.IntVar())
 
     # controls
     tk.Grid.rowconfigure(root, 0, weight=0)
