@@ -16,7 +16,6 @@ FR_SECONDS = 5
 PROGRESS_INTERVAL_MS = int(0.25 * 1_000)
 END_TOLERANCE_MS = 300
 CONFIG_FILENAME = "player.ini"
-ABORT_EXIT_CODE=23
 
 @dataclass(init=True)
 class PlayerContext:
@@ -57,7 +56,7 @@ def update_progress(context: PlayerContext) -> None:
     new_time = context.player.get_time()
     if (new_time == context.last_time) and (context.player.get_length() - new_time < END_TOLERANCE_MS):
         if not context.wait:
-            next(context)
+            next_video(context)
     else:
         context.progress.set(context.player.get_position() * 100)
         context.last_time = new_time
@@ -95,7 +94,7 @@ def cleanup_player(context: PlayerContext):
         except ValueError:
             pass
 
-def next(context: PlayerContext):
+def next_video(context: PlayerContext):
     # find next file
     try:
         index = context.play_dir_list.index(context.play_file) + 1
@@ -110,7 +109,7 @@ def next(context: PlayerContext):
         cleanup_player(context)
         start_playback(context, next_play_file)
 
-def prev(context: PlayerContext):
+def prev_video(context: PlayerContext):
     # find prev file
     try:
         index = context.play_dir_list.index(context.play_file)
@@ -130,15 +129,16 @@ def delete(context: PlayerContext) -> None:
         print(f"Deleting file '{context.play_file}'...")
         context.play_file.unlink(missing_ok=True)
 
-def stop(context: PlayerContext, abort: bool=False, abort_exitcode=ABORT_EXIT_CODE) -> None:
+def abort(context: PlayerContext) -> None:
+    if not (context.play_file is None or context.play_file.is_file()):
+        next_video(context)
+    stop(context)
+    print(f"Abort, saving resume file '{context.play_file}'...")
+    save_resume_filename(context.play_file)
+
+def stop(context: PlayerContext) -> None:
     cleanup_player(context)
     context.root.destroy()
-    if abort:
-        print(f"Abort, saving resume file '{context.play_file}'...")
-        save_resume_filename(context.play_file)
-        exit(abort_exitcode)
-    else:
-        save_resume_filename(None)
 
 def save_resume_filename(resume_file: pathlib.Path) -> None:
     if resume_file is not None:
@@ -146,8 +146,6 @@ def save_resume_filename(resume_file: pathlib.Path) -> None:
         config['resume'] = { 'filename': str(resume_file) }
         with open(CONFIG_FILENAME, 'w') as configfile:
             config.write(configfile)
-    else:
-        pathlib.Path(CONFIG_FILENAME).unlink(missing_ok=True)
 
 def load_resume_filename() -> str:
     config = configparser.ConfigParser()
@@ -187,7 +185,6 @@ def get_commandline_arguments():
     parser.add_argument('-t', '--title', default=TITLE)
     parser.add_argument('-r', '--resume', action='store_true')
     parser.add_argument('-w', '--wait', action='store_true')
-    parser.add_argument('-a', '--abort-exitcode', type=int, default=ABORT_EXIT_CODE)
     parser.add_argument('-fs', '--full-screen', action='store_true')
     parser.add_argument('-ff', '--fast-forward', type=int, default=FF_SECONDS)
     parser.add_argument('-fr', '--fast-rewind', type=int, default=FR_SECONDS)
@@ -195,12 +192,12 @@ def get_commandline_arguments():
 
     args = parser.parse_args()
     return (args.dirname, args.title,
-        args.resume, args.wait, args.abort_exitcode, args.full_screen,
+        args.resume, args.wait, args.full_screen,
         args.fast_forward, args.fast_rewind, args.audio_volume)
 
 def main():
     # command line options
-    dirname, title, resume, wait, abort_exitcode, fullscreen, ff, fr, av = get_commandline_arguments()
+    dirname, title, resume, wait, fullscreen, ff, fr, av = get_commandline_arguments()
 
     # check directory exists
     play_dir = pathlib.Path(dirname)
@@ -238,11 +235,11 @@ def main():
 
     # widget callbacks
     playback_callback = partial(toggle_playback, context=context)
-    stop_callback = partial(stop, context=context, abort_exitcode=max(ABORT_EXIT_CODE, abort_exitcode))
-    next_callback = partial(next, context=context)
-    prev_callback = partial(prev, context=context)
+    stop_callback = partial(stop, context=context)
+    next_callback = partial(next_video, context=context)
+    prev_callback = partial(prev_video, context=context)
     delete_callback = partial(delete, context=context)
-    abort_callback = partial(stop_callback, abort=True)
+    abort_callback = partial(abort, context=context)
     forward_callback = partial(forward, context=context, seconds=ff)
     rewind_callback = partial(rewind, context=context, seconds=fr)
 
@@ -266,8 +263,8 @@ def main():
     root.bind("<Prior>", lambda event: prev_callback())
     root.bind("<Next>", lambda event: next_callback())
     root.bind("<Escape>", lambda event: next_callback())
-    root.bind("<q>", lambda event: stop_callback())
     root.bind("<d>", lambda event: delete_callback())
+    root.bind("<q>", lambda event: stop_callback())
     root.bind("<a>", lambda event: abort_callback())
 
     # start

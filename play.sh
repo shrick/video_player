@@ -7,6 +7,3 @@ ABORT_CODE=42
 
 VIDEO_DIR="$1"; shift
 $PLAYER_CMD "$VIDEO_DIR" -a $ABORT_CODE "$@"
-if [ $? -eq $ABORT_CODE ]; then
-    echo "Aborted ($ABORT_CODE)"
-fi
