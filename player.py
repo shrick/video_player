@@ -21,8 +21,8 @@ CONFIG_FILENAME = "player.ini"
 class PlayerContext:
     root: tk.Tk = None
     player: vlc.MediaPlayer = None
+    caption_bar: tk.Label = None
     video_frame: tk.Frame = None
-    title: str = None
     wait: bool = False
     volume: int = None
     play_dir_list: list[pathlib.Path] = None
@@ -49,7 +49,7 @@ def start_playback(context: PlayerContext, play_file: pathlib.Path) -> None:
         exit(3)
     print(f"Now playing '{context.play_file}'...")
 
-    context.root.title(f"{context.title} ({str(context.play_file)})")
+    context.caption_bar.configure(text=context.play_file)
     context.job = context.root.after(PROGRESS_INTERVAL_MS, lambda: update_progress(context))
 
 def update_progress(context: PlayerContext) -> None:
@@ -217,21 +217,28 @@ def main():
 
     # init
     root = tk.Tk()
-    context = PlayerContext(root=root, title=title, wait=wait, volume=av, play_dir_list=play_dir_list, progress=tk.IntVar())
+    root.title(title)
+    context = PlayerContext(root=root, wait=wait, volume=av, play_dir_list=play_dir_list, progress=tk.IntVar())
 
     # controls
-    tk.Grid.rowconfigure(root, 0, weight=1)
-    tk.Grid.rowconfigure(root, 1, weight=0)
+    tk.Grid.rowconfigure(root, 0, weight=0)
+    tk.Grid.rowconfigure(root, 1, weight=1)
+    tk.Grid.rowconfigure(root, 2, weight=0)
+    tk.Grid.rowconfigure(root, 3, weight=0)
     tk.Grid.columnconfigure(root, 0, weight=1)
     tk.Grid.columnconfigure(root, 1, weight=1)
     tk.Grid.columnconfigure(root, 2, weight=1)
 
+    caption = tk.Label(root)
+    caption.grid(row=0, column=0, columnspan=3, sticky="NEW")
+    context.caption_bar = caption
+
     video = tk.Frame(root, bg='black')
-    video.grid(row=0, column=0, columnspan=3, sticky="NSEW")
+    video.grid(row=1, column=0, columnspan=3, sticky="NSEW")
     context.video_frame = video
 
     progressbar = ttk.Progressbar(variable=context.progress)
-    progressbar.grid(row=1, column=0, columnspan=3, sticky="SEW")
+    progressbar.grid(row=2, column=0, columnspan=3, sticky="SEW")
 
     # widget callbacks
     playback_callback = partial(toggle_playback, context=context)
@@ -250,11 +257,11 @@ def main():
     else:
         root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
         tk.Button(root, text="Play/Pause", fg="green",
-            command=playback_callback).grid(row=2, column=0, sticky="SEW")
+            command=playback_callback).grid(row=3, column=0, sticky="SEW")
         tk.Button(root, text="Stop/Quit", fg="blue",
-            command=stop_callback).grid(row=2, column=1, sticky="SEW")
+            command=stop_callback).grid(row=3, column=1, sticky="SEW")
         tk.Button(root, text="Delete", fg="red",
-            command=delete_callback).grid(row=2, column=2, sticky="SEW")
+            command=delete_callback).grid(row=3, column=2, sticky="SEW")
 
     # key bindings
     root.bind('<Right>', lambda event: forward_callback())
