@@ -31,12 +31,13 @@ class PlayerContext:
     last_time: int = -1
     job: ... = None
 
-def start_playback(context: PlayerContext, play_file: pathlib.Path) -> None:
-    if play_file is None or not play_file.is_file():
-        print(f"Error: Could not open file '{play_file}'!")
+def start_playback(context: PlayerContext, play_file: pathlib.Path=None) -> None:
+    if play_file is not None:
+        context.play_file = play_file
+    if context.play_file is None or not context.play_file.is_file():
+        print(f"Error: Could not open file '{context.play_file}'!")
         exit(2)
 
-    context.play_file = play_file
     context.player = vlc.MediaPlayer(str(context.play_file))
     context.player.set_xwindow(context.video_frame.winfo_id())
 
@@ -62,9 +63,11 @@ def update_progress(context: PlayerContext) -> None:
         context.last_time = new_time
         context.job = context.root.after(PROGRESS_INTERVAL_MS, lambda: update_progress(context))
 
-def toggle_playback(context: PlayerContext) -> None:
+def toggle_playback(context: PlayerContext, pause=False) -> None:
     if context.job is not None:
-        context.player.set_pause(context.player.is_playing())
+        context.player.set_pause(pause or context.player.is_playing())
+    else:
+        start_playback(context)
 
 def forward(context: PlayerContext, seconds: int) -> None:
     if context.job is not None:
@@ -128,6 +131,14 @@ def delete(context: PlayerContext) -> None:
     if yes:
         print(f"Deleting file '{context.play_file}'...")
         context.play_file.unlink(missing_ok=True)
+
+        next_video(context)
+        if context.wait:
+            toggle_playback(context, pause=True)
+
+    else:
+        if not context.wait:
+            start_playback(context)
 
 def abort(context: PlayerContext) -> None:
     if not (context.play_file is None or context.play_file.is_file()):
