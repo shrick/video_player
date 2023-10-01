@@ -186,7 +186,8 @@ def build_play_dir_list(play_dir: pathlib.Path):
         if p.is_dir():
             result.extend(build_play_dir_list(p))
         elif p.is_file():
-            result.append(p)
+            if p.name != CONFIG_FILENAME:
+                result.append(p)
 
     return sorted(result)
 
