@@ -276,16 +276,22 @@ def main():
         tk.Button(root, text="Delete", fg="red",
             command=delete_callback).grid(row=3, column=2, sticky="SEW")
 
-    # key bindings
-    root.bind('<Right>', lambda event: forward_callback())
-    root.bind('<Left>', lambda event: rewind_callback())
-    root.bind("<space>", lambda event: playback_callback())
-    root.bind("<Prior>", lambda event: prev_callback())
-    root.bind("<Next>", lambda event: next_callback())
-    root.bind("<Escape>", lambda event: next_callback())
-    root.bind("<d>", lambda event: delete_callback())
-    root.bind("<q>", lambda event: stop_callback())
-    root.bind("<a>", lambda event: abort_callback())
+    # wireless presenter compatible key bindings:
+    # - Next        = Page Down
+    # - Previous    = Page Up
+    # - Start/Stop  = Alternating between F5 and Esc
+    # - Hide        = b
+    root.bind('<Left>', lambda e: rewind_callback())
+    root.bind('<Right>', lambda e: forward_callback())
+    root.bind('b', lambda presenter_event: forward_callback())
+    root.bind("<space>", lambda e: playback_callback())
+    root.bind("<F5>", lambda presenter_event: playback_callback())
+    root.bind("<Escape>", lambda presenter_event: playback_callback())
+    root.bind("<Prior>", lambda presenter_event: prev_callback())
+    root.bind("<Next>", lambda presenter_event: next_callback())
+    root.bind("<d>", lambda e: delete_callback())
+    root.bind("<q>", lambda e: stop_callback())
+    root.bind("<a>", lambda e: abort_callback())
 
     # start
     start_playback(context, play_file)
