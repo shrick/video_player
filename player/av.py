@@ -5,12 +5,16 @@ import pathlib
 import vlc # https://www.olivieraubert.net/vlc/python-ctypes/doc/vlc.MediaPlayer-class.html
 
 class AudioVideo:
-    def __init__(self, videofile: pathlib.Path, widget_id: int, volume: int) -> None:
+    def __init__(self, videofile: pathlib.Path, widget_id: int, volume: int,  autoplay: bool=False) -> None:
         self._videofile = videofile
         self._player = vlc.MediaPlayer(str(self._videofile))
         self._player.set_xwindow(widget_id)
+
         if volume is not None:
             self._player.audio_set_volume(max(0, min(volume, 100)))
+
+        if autoplay:
+            self.play()
 
     def play(self) -> None:
         started = self._player.play()

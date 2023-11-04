@@ -11,11 +11,11 @@ END_TOLERANCE_MS = 300
 class Controller:
     def __init__(self, playlist: Playlist, volume: int, ff: int, fr: int, wait: bool) -> None:
         self._playlist: Playlist = playlist
+        self._volume = volume
+        self._ff = ff
+        self._fr = fr
+        self._wait = wait
         self._av: AudioVideo = None
-        self._volume: int = volume
-        self._ff: int = ff
-        self._fr: int = fr
-        self._wait: bool = wait
         self._ui = None
 
     def register_ui(self, ui) -> Callable:
@@ -28,13 +28,14 @@ class Controller:
             print(f"Error: Could not open file '{play_file}'!")
             self.stop()
         else:
-            self._av = AudioVideo(play_file, self._ui.get_widget_id(), self._volume)
-            self._av.play()
+            self._av = AudioVideo(play_file, self._ui.get_video_widget_id(), self._volume, autoplay=True)
             self._ui.set_caption(play_file)
-            self._last_time = -1
-            self._update_progress()
+            self._update_progress(restart=True)
 
-    def _update_progress(self) -> None:
+    def _update_progress(self, restart: bool=False) -> None:
+        if restart:
+            self._last_time = -1
+
         if self._av is not None:
             new_time, vlen, vpos = self._av.get_state()
 
@@ -56,7 +57,7 @@ class Controller:
 
     def fast_rewind(self) -> None:
         if self._av is not None:
-                self._last_time = self._av.move(-self._fr)
+            self._last_time = self._av.move(-self._fr)
 
     def _skip_video(self, next: bool, delete_current: bool=False, continue_playback: bool=True) -> None:
         playlist_skip = self._playlist.next if next else self._playlist.prev

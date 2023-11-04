@@ -93,5 +93,5 @@ class UserInterface:
     def question_dialog(self, title, message):
         return askyesno(title=title, message=message)
 
-    def get_widget_id(self) -> int:
+    def get_video_widget_id(self) -> int:
         return self._video.winfo_id()

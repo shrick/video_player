@@ -14,7 +14,7 @@ Video player to prepare and perform video playback of all video files below a gi
 
 With `-w` option next video will not automatically played, instead it waits/pauses at the end of each video so you can screen and sort out video files without hurry.
 
-With `-r` option the playback is resumed with the video file the last session was aborted. The resume configuration is saved directly below the passed video directory in a `player.ini` file and only written on abort, i.e. quitting the application normally will neither change nor delete the resume configuration.
+With `-r` option playback is resumed with the video file the last session was aborted. The resume configuration is saved directly below the passed video directory in a `player.ini` file and only written on abort, i.e. quitting the application normally will neither change nor delete the resume configuration.
 
 # Key bindings
 

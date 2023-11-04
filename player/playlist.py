@@ -56,9 +56,6 @@ class Playlist:
             with open(self._root / CONFIG_FILENAME, 'w') as configfile:
                 config.write(configfile)
 
-    def get_root_dir(self) -> pathlib.Path:
-        return self._root
-
     def get_current_file(self) -> pathlib.Path:
         return self._current
 
