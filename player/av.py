@@ -1,5 +1,6 @@
-# VideoControl
+# AudioVideo
 
+import sys
 import pathlib
 
 import vlc # https://www.olivieraubert.net/vlc/python-ctypes/doc/vlc.MediaPlayer-class.html
@@ -20,7 +21,7 @@ class AudioVideo:
         started = self._player.play()
         if started == -1:
             print(f"Error: Could not start file '{self._videofile}'!")
-            exit(3)
+            sys.exit(3)
         print(f"Now playing '{self._videofile}'...")
 
     def toggle(self) -> None:

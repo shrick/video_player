@@ -1,9 +1,9 @@
 # Controller
 
+from typing import Any, Callable
+
 from player.playlist import Playlist
 from player.av import AudioVideo
-
-from typing import Callable
 
 PROGRESS_INTERVAL_MS = int(0.25 * 1_000)
 END_TOLERANCE_MS = 300
@@ -15,8 +15,10 @@ class Controller:
         self._ff = ff
         self._fr = fr
         self._wait = wait
-        self._av: AudioVideo = None
-        self._ui = None
+        self._av: AudioVideo | None = None
+        self._last_time = -1
+        self._ui: Any = None
+        self._cancel_action: Callable = None
 
     def register_ui(self, ui) -> Callable:
         self._ui = ui
@@ -59,18 +61,18 @@ class Controller:
         if self._av is not None:
             self._last_time = self._av.move(-self._fr)
 
-    def _skip_video(self, next: bool, delete_current: bool=False, continue_playback: bool=True) -> None:
-        playlist_skip = self._playlist.next if next else self._playlist.prev
+    def _skip_video(self, next_video: bool, delete_current: bool=False, continue_playback: bool=True) -> None:
+        playlist_skip = self._playlist.next if next_video else self._playlist.prev
         if playlist_skip(delete_current=delete_current):
             self._stop_playback()
             if continue_playback:
                 self.start_playback()
 
     def next_video(self, delete_current: bool=False, continue_playback: bool=True) -> None:
-        self._skip_video(next=True, delete_current=delete_current, continue_playback=continue_playback)
+        self._skip_video(next_video=True, delete_current=delete_current, continue_playback=continue_playback)
 
     def prev_video(self) -> None:
-        self._skip_video(next=False)
+        self._skip_video(next_video=False)
 
     def delete(self) -> None:
         self._stop_playback()

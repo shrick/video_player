@@ -8,13 +8,11 @@ CONFIG_FILENAME = "player.ini"
 class Playlist:
     def __init__(self, root: str, resume: bool) -> None:
         self._root = pathlib.Path(root)
-
-        # collect files
         if not self._root.is_dir():
             raise NotADirectoryError(f"Directory '{root}' does not exist!")
-        self._files = self._build_play_dir_list(self._root)
+        self._files = self._collect_files(self._root)
 
-        # setup current file
+        # setup next file to play
         resume_file = self._load_resume_file() if resume else None
         if resume_file and resume_file in self._files:
             self._current = resume_file
@@ -23,12 +21,12 @@ class Playlist:
         else:
             self._current = None
 
-    def _build_play_dir_list(self, dir: pathlib.Path) -> list[pathlib.Path]:
+    def _collect_files(self, vdir: pathlib.Path) -> list[pathlib.Path]:
         result = []
 
-        for p in dir.iterdir():
+        for p in vdir.iterdir():
             if p.is_dir():
-                result.extend(self._build_play_dir_list(p))
+                result.extend(self._collect_files(p))
             elif p.is_file():
                 if p.name != CONFIG_FILENAME:
                     result.append(p)
@@ -73,7 +71,7 @@ class Playlist:
         except IndexError:
             return False
 
-        new_index = (old_index + offset)
+        new_index = old_index + offset
         if new_index == files_count:
             # next rollover (offset > 0)
             new_index = offset - 1

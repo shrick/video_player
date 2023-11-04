@@ -1,12 +1,12 @@
-# PlayerUI
-
-from player.control import Controller
+# UserInterface
 
 from typing import Callable
 
 import tkinter as tk
 from tkinter import ttk
 from tkinter.messagebox import askyesno
+
+from player.control import Controller
 
 class UserInterface:
     def __init__(self, title: str, fullscreen: bool, controller: Controller) -> None:
@@ -80,7 +80,7 @@ class UserInterface:
         self._caption.configure(text=caption)
 
     def set_progress(self, progress: float) -> None:
-        self._progress.set(progress)
+        self._progress.set(int(progress))
 
     def schedule_action(self, interval, action) -> Callable:
         job = self._root.after(interval, action)

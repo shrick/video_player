@@ -1,10 +1,10 @@
 # Video Player
 
+import argparse
+
 from player.playlist import Playlist
 from player.control import Controller
 from player.ui import UserInterface
-
-import argparse
 
 TITLE = "Shrick Video Player"
 FF_SECONDS = 10
