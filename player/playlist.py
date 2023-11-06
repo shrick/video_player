@@ -38,7 +38,7 @@ class Playlist:
         config.read(self._root / CONFIG_FILENAME)
 
         try:
-            resume_file = pathlib.Path(config['resume']['filename'])
+            resume_file = self._root / pathlib.Path(config['resume']['filename'])
         except KeyError:
             pass
         else:
@@ -50,7 +50,7 @@ class Playlist:
     def save_resume_file(self) -> None:
         if self._current is not None:
             config = configparser.ConfigParser()
-            config['resume'] = { 'filename': str(self._current) }
+            config['resume'] = { 'filename': str(self._current.relative_to(self._root)) }
             with open(self._root / CONFIG_FILENAME, 'w') as configfile:
                 config.write(configfile)
 
