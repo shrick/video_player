@@ -5,6 +5,9 @@ import pathlib
 
 import vlc # https://www.olivieraubert.net/vlc/python-ctypes/doc/vlc.MediaPlayer-class.html
 
+class PlaybackException(Exception):
+    pass
+
 class AudioVideo:
     def __init__(self, videofile: pathlib.Path, widget_id: int, volume: int,  autoplay: bool=False) -> None:
         self._videofile = videofile
@@ -20,8 +23,7 @@ class AudioVideo:
     def play(self) -> None:
         started = self._player.play()
         if started == -1:
-            print(f"Error: Could not start file '{self._videofile}'!")
-            sys.exit(3)
+            raise PlaybackException("Could not start file '{self._videofile}")
         print(f"Now playing '{self._videofile}'...")
 
     def toggle(self) -> None:
