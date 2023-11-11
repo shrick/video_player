@@ -15,51 +15,52 @@ class Controller:
         self._ff = ff
         self._fr = fr
         self._wait = wait
-        self._av: AudioVideo | None = None
+        self._av = AudioVideo()
         self._last_time = -1
         self._ui: Any = None
         self._cancel_action: Callable = None
 
     def register_ui(self, ui) -> Callable:
         self._ui = ui
+        self._av.set_video_widget_id(self._ui.get_video_widget_id())
         return self.start_playback
 
     def start_playback(self) -> None:
         play_file = self._playlist.get_current_file()
         if play_file is None or not play_file.is_file():
             print(f"Error: Could not open file '{play_file}'!")
-            self.stop()
+            self.quit()
         else:
-            self._av = AudioVideo(play_file, self._ui.get_video_widget_id(), self._volume, autoplay=True)
+            self._av.play(play_file, self._volume)
             self._ui.set_caption(play_file)
             self._update_progress(restart=True)
 
-    def _update_progress(self, restart: bool=False) -> None:
+    def _update_progress(self, restart: bool=False, stop: bool=False) -> None:
+        if stop:
+            if self._cancel_action is not None:
+                self._cancel_action()
+                self._cancel_action = None
+            return
+
         if restart:
             self._last_time = -1
 
-        if self._av is not None:
-            new_time, vlen, vpos = self._av.get_state()
-
-            self._ui.set_progress(vpos * 100)
-            if not self._wait and (new_time == self._last_time) and (vlen - new_time < END_TOLERANCE_MS):
-                self.next_video()
-            self._last_time = new_time
-            self._cancel_action = self._ui.schedule_action(PROGRESS_INTERVAL_MS, self._update_progress)
+        new_time, vlen, vpos = self._av.get_state()
+        self._ui.set_progress(vpos * 100)
+        if not self._wait and (new_time == self._last_time) and (vlen - new_time < END_TOLERANCE_MS):
+            self.next_video()
+        self._last_time = new_time
+        self._cancel_action = self._ui.schedule_action(PROGRESS_INTERVAL_MS, self._update_progress)
 
     def toggle_playback(self) -> None:
-        if self._av is not None:
-            self._av.toggle()
-        else:
+        if not self._av.toggle():
             self.start_playback()
 
     def fast_forward(self) -> None:
-        if self._av is not None:
-            self._last_time = self._av.move(self._ff)
+        self._last_time = self._av.move(self._ff)
 
     def fast_rewind(self) -> None:
-        if self._av is not None:
-            self._last_time = self._av.move(-self._fr)
+        self._last_time = self._av.move(-self._fr)
 
     def _skip_video(self, next_video: bool, delete_current: bool=False, continue_playback: bool=True) -> None:
         playlist_skip = self._playlist.next if next_video else self._playlist.prev
@@ -84,16 +85,14 @@ class Controller:
             self.start_playback()
 
     def abort(self) -> None:
-        self.stop()
+        self.quit()
         print(f"Abort, saving resume file '{self._playlist.get_current_file()}'...")
         self._playlist.save_resume_file()
 
-    def stop(self) -> None:
+    def quit(self) -> None:
         self._stop_playback()
         self._ui.quit()
 
     def _stop_playback(self) -> None:
-        if self._av is not None:
-            self._cancel_action()
-            self._av.stop()
-            self._av = None
+        self._update_progress(stop=True)
+        self._av.stop()
