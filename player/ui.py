@@ -51,7 +51,7 @@ class UserInterface:
         self._root.bind("<Prior>", lambda presenter_event: controller.prev_video())         # presenter
         self._root.bind("<Next>", lambda presenter_event: controller.next_video())          # presenter
         self._root.bind("<d>", lambda e: controller.delete())
-        self._root.bind("<q>", lambda e: controller.stop())
+        self._root.bind("<q>", lambda e: controller.quit())
         self._root.bind("<a>", lambda e: controller.abort())
 
         if fullscreen:
@@ -62,8 +62,8 @@ class UserInterface:
             self._root.geometry(f"{self._root.winfo_screenwidth()}x{self._root.winfo_screenheight()}+0+0")
             tk.Button(self._root, text="Play/Pause", fg="green",
                 command=controller.toggle_playback).grid(row=3, column=0, sticky="SEW")
-            tk.Button(self._root, text="Stop/Quit", fg="blue",
-                command=controller.stop).grid(row=3, column=1, sticky="SEW")
+            tk.Button(self._root, text="Quit", fg="blue",
+                command=controller.quit).grid(row=3, column=1, sticky="SEW")
             tk.Button(self._root, text="Delete", fg="red",
                 command=controller.delete).grid(row=3, column=2, sticky="SEW")
 
