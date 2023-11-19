@@ -20,19 +20,20 @@ def get_commandline_arguments():
     parser.add_argument('-ff', '--fast-forward', type=int, default=FF_SECONDS)
     parser.add_argument('-fr', '--fast-rewind', type=int, default=FR_SECONDS)
     parser.add_argument('-av', '--audio-volume', type=int, default=None)
+    parser.add_argument('-m', '--marquee-timeout', type=int, default=None)
 
     args = parser.parse_args()
     return (args.dirname, args.title,
         args.resume, args.wait, args.full_screen,
-        args.fast_forward, args.fast_rewind, args.audio_volume)
+        args.fast_forward, args.fast_rewind, args.audio_volume, args.marquee_timeout)
 
 def main():
     # evaluate command line options
-    dirname, title, resume, wait, fullscreen, ff, fr, volume = get_commandline_arguments()
+    dirname, title, resume, wait, fullscreen, ff, fr, volume, marquee_timeout = get_commandline_arguments()
 
     # setup
     playlist = Playlist(dirname, resume)
-    controller = Controller(playlist, volume, ff, fr, wait)
+    controller = Controller(playlist, volume, ff, fr, marquee_timeout, wait)
     ui = UserInterface(title, fullscreen, controller)
 
     # start

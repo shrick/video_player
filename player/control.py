@@ -1,5 +1,7 @@
 # Controller
 
+import pathlib
+import re
 from typing import Any, Callable
 
 from player.playlist import Playlist
@@ -8,14 +10,17 @@ from player.av import AudioVideo
 PROGRESS_INTERVAL_MS = int(0.25 * 1_000)
 END_TOLERANCE_MS = 300
 
+DATE_REGEX = r'\d{4}(-?\d{2}(-`\d{2})?)?' # e.g. '2001-02-03' or '2001-02' or at least '2001' (with optional dashes)
+DATE_PATTERN = re.compile(DATE_REGEX)
+
 class Controller:
-    def __init__(self, playlist: Playlist, volume: int, ff: int, fr: int, wait: bool) -> None:
+    def __init__(self, playlist: Playlist, volume: int, ff: int, fr: int, marquee_timeout: int | None, wait: bool) -> None:
         self._playlist: Playlist = playlist
         self._volume = volume
         self._ff = ff
         self._fr = fr
         self._wait = wait
-        self._av = AudioVideo()
+        self._av = AudioVideo(marquee_timeout)
         self._last_time = -1
         self._ui: Any = None
         self._cancel_action: Callable = None
@@ -31,9 +36,15 @@ class Controller:
             print(f"Error: Could not open file '{play_file}'!")
             self.quit()
         else:
-            self._av.play(play_file, self._volume)
+            self._av.play(play_file, self._volume, self._get_date_information(play_file))
             self._ui.set_caption(play_file)
             self._update_progress(restart=True)
+
+    def _get_date_information(self, videofile: pathlib.Path):
+        if m := DATE_PATTERN.search(str(videofile)):
+            return m.group(0)
+
+        return None
 
     def _update_progress(self, restart: bool=False, stop: bool=False) -> None:
         if stop:
